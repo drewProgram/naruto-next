@@ -1,0 +1,42 @@
+[
+    {
+        "Name": "BaseAttributeSet.Health",
+        "BaseValue": 100.0,
+        "MinValue": 0.0,
+        "MaxValue": 100.0,
+        "DerivedAttributeInfo": "",
+        "bCanStack": false
+    },
+    {
+        "Name": "BaseAttributeSet.MaxHealth",
+        "BaseValue": 100.0,
+        "MinValue": 100.0,
+        "MaxValue": 100.0,
+        "DerivedAttributeInfo": "",
+        "bCanStack": false
+    },
+    {
+        "Name": "BaseAttributeSet.Chakra",
+        "BaseValue": 100.0,
+        "MinValue": 0.0,
+        "MaxValue": 300.0,
+        "DerivedAttributeInfo": "",
+        "bCanStack": false
+    },
+    {
+        "Name": "BaseAttributeSet.MaxChakra",
+        "BaseValue": 300.0,
+        "MinValue": 300.0,
+        "MaxValue": 300.0,
+        "DerivedAttributeInfo": "",
+        "bCanStack": false
+    },
+    {
+        "Name": "BaseAttributeSet.MoveSpeed",
+        "BaseValue": 100.0,
+        "MinValue": 0.0,
+        "MaxValue": 100.0,
+        "DerivedAttributeInfo": "",
+        "bCanStack": false
+    }
+]
