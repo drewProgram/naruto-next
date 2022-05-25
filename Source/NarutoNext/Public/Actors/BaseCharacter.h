@@ -10,50 +10,84 @@
 #include "GameFramework/Character.h"
 #include "BaseCharacter.generated.h"
 
+class UGameplayEffect;
+class UCharacterGameplayAbility;
+class USpringArmComponent;
+class UCameraComponent;
+class UInputComponent;
+class UGameplayAbility;
+
 UCLASS()
 class NARUTONEXT_API ABaseCharacter : public ACharacter, public IAbilitySystemInterface
 {
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
 	ABaseCharacter();
 
 protected:
-	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category="Abilities")
+	/*******************
+	*  Ability System
+	********************/
+	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category = "Abilities")
 	UNNAbilitySystemComponent* AbilitySystem;
 
 	UPROPERTY()
 	const UBaseAttributeSet* AttributeSet;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Abilities")
+	TArray<TSubclassOf<UGameplayEffect>> PassiveGameplayEffects;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Abilities")
+	TArray<TSubclassOf<UCharacterGameplayAbility>> GameplayAbilities;
+
+	UPROPERTY()
+	uint8 bAbilitiesInitialized:1;
+
 private:
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
-	class USpringArmComponent* SpringArm;
+	USpringArmComponent* SpringArm;
 
 	UPROPERTY(VisibleAnywhere, Category = "Camera")
-	class UCameraComponent* Camera;
+	UCameraComponent* Camera;
 
 	UPROPERTY(EditAnywhere, Category = "Movement")
 	float RotationRate;
 
-public:	
-	// Called every frame
+public:
+	/** Overrides */
 	virtual void Tick(float DeltaTime) override;
+	virtual void SetupPlayerInputComponent(UInputComponent* PlayerInputComponent) override;
 
-	// Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
-
+	/*******************
+	*  Ability System
+	********************/
 	virtual UAbilitySystemComponent* GetAbilitySystemComponent() const override;
 
-	 UFUNCTION(BlueprintCallable)
-	 void GrantAbility(TSubclassOf<class UGameplayAbility> AbilityClass, int32 Level, int32 InputCode);
-
-	 UFUNCTION(BlueprintCallable)
-	 void ActivateAbility(int32 InputCode);
+	UFUNCTION(BlueprintCallable)
+	void ActivateAbility(int32 InputCode);
 
 protected:
-	// Called when the game starts or when spawned
+	/** Overrides */
 	virtual void BeginPlay() override;
+	virtual void PossessedBy(AController* NewController) override;
+	virtual void OnRep_PlayerState() override;
+
+	void AddStartupGameplayAbilities();
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnDamaged(float DamageAmount, const FHitResult& HitInfo, const struct FGameplayTagContainer& DamageTags,
+		ABaseCharacter* InstigatorCharacter, AActor* DamageCauser);
+
+	UFUNCTION(BlueprintImplementableEvent)
+	void OnHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
+
+	virtual void HandleDamage(float DamageAmount, const FHitResult& HitInfo, const struct FGameplayTagContainer& DamageTags,
+		ABaseCharacter* InstigatorCharacter, AActor* DamageCauser);
+
+	virtual void HandleHealthChanged(float DeltaValue, const struct FGameplayTagContainer& EventTags);
+
+	friend UBaseAttributeSet;
 
 private:
 	void MoveForward(float AxisValue);

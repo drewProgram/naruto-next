@@ -6,10 +6,14 @@
 #include "GameFramework/SpringArmComponent.h"
 
  #include "Abilities/GameplayAbility.h"
+ #include "Abilities/CharacterGameplayAbility.h"
+
+ #include "Core/CharacterData.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
 	: RotationRate(10.f)
+	, bAbilitiesInitialized(false)
 {    
 	PrimaryActorTick.bCanEverTick = true;
 
@@ -36,6 +40,38 @@ void ABaseCharacter::BeginPlay()
 	}
 }
 
+void ABaseCharacter::PossessedBy(AController* NewController)
+{
+	Super::PossessedBy(NewController);
+
+	// Server GAS init
+	if (AbilitySystem)
+	{
+		AbilitySystem->InitAbilityActorInfo(this, this);
+		AddStartupGameplayAbilities();
+	}
+}
+
+void ABaseCharacter::OnRep_PlayerState()
+{
+	Super::OnRep_PlayerState();
+
+	AbilitySystem->InitAbilityActorInfo(this, this);
+
+	if (AbilitySystem && InputComponent)
+	{
+		const FGameplayAbilityInputBinds Binds(
+			"Confirm",
+			"Cancel",
+			"ECharacterAbilityInputID",
+			static_cast<int32>(ECharacterAbilityInputID::Confirm),
+			static_cast<int32>(ECharacterAbilityInputID::Cancel)
+		);
+
+		AbilitySystem->BindAbilityActivationToInputComponent(InputComponent, Binds);
+	}
+}
+
 // Called every frame
 void ABaseCharacter::Tick(float DeltaTime)
 {
@@ -54,6 +90,19 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	PlayerInputComponent->BindAxis(TEXT("LookRight"), this, &APawn::AddControllerYawInput);
 
 	PlayerInputComponent->BindAction(TEXT("Jump"), IE_Pressed, this, &ACharacter::Jump);
+
+	if (AbilitySystem && InputComponent)
+	{
+		const FGameplayAbilityInputBinds Binds(
+			"Confirm",
+			"Cancel",
+			"ECharacterAbilityInputID",
+			static_cast<int32>(ECharacterAbilityInputID::Confirm),
+			static_cast<int32>(ECharacterAbilityInputID::Cancel)
+		);
+
+		AbilitySystem->BindAbilityActivationToInputComponent(InputComponent, Binds);
+	}
 }
 
 UAbilitySystemComponent* ABaseCharacter::GetAbilitySystemComponent() const
@@ -61,23 +110,53 @@ UAbilitySystemComponent* ABaseCharacter::GetAbilitySystemComponent() const
 	return AbilitySystem;
 }
 
-void ABaseCharacter::GrantAbility(TSubclassOf<UGameplayAbility> AbilityClass, int32 Level, int32 InputCode)
+void ABaseCharacter::AddStartupGameplayAbilities()
 {
-	if (GetLocalRole() == ROLE_Authority && IsValid(AbilitySystem) && IsValid(AbilityClass))
+	check(AbilitySystem);
+
+	if (GetLocalRole() == ROLE_Authority && !bAbilitiesInitialized)
 	{
-		UGameplayAbility* Ability = AbilityClass->GetDefaultObject<UGameplayAbility>();
-
-		if (IsValid(Ability))
+		// Grant Abilities only on the server
+		for (TSubclassOf<UCharacterGameplayAbility>& StartupAbility : GameplayAbilities)
 		{
-			// Create the new ability spec struct
-			FGameplayAbilitySpec AbilitySpec(
-				Ability,
-				Level,
-				InputCode
-			);
-
-			AbilitySystem->GiveAbility(AbilitySpec);
+			AbilitySystem->GiveAbility(FGameplayAbilitySpec(
+				StartupAbility,
+				1,
+				static_cast<int32>(StartupAbility.GetDefaultObject()->AbilityInputID),
+				this
+			));
 		}
+
+		// Apply passives
+		for (const TSubclassOf<UGameplayEffect>& GameplayEffect : PassiveGameplayEffects)
+		{
+			FGameplayEffectContextHandle EffectContext = AbilitySystem->MakeEffectContext();
+			EffectContext.AddSourceObject(this);
+
+			FGameplayEffectSpecHandle NewHandle = AbilitySystem->MakeOutgoingSpec(GameplayEffect, 1, EffectContext);
+
+			if (NewHandle.IsValid())
+			{
+				FActiveGameplayEffectHandle ActivateGameplayEffectHandle = AbilitySystem->ApplyGameplayEffectSpecToTarget(
+					*NewHandle.Data.Get(), AbilitySystem
+				);
+			}
+		}
+
+		bAbilitiesInitialized = true;
+	}
+}
+
+void ABaseCharacter::HandleDamage(float DamageAmount, const FHitResult& HitInfo, const FGameplayTagContainer& DamageTags, ABaseCharacter* InstigatorCharacter, AActor* DamageCauser)
+{
+	OnDamaged(DamageAmount, HitInfo, DamageTags, InstigatorCharacter, DamageCauser);
+}
+
+void ABaseCharacter::HandleHealthChanged(float DeltaValue, const FGameplayTagContainer& EventTags)
+{
+	if (bAbilitiesInitialized)
+	{
+		OnHealthChanged(DeltaValue, EventTags);
 	}
 }
 

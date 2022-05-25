@@ -25,6 +25,7 @@ class NARUTONEXT_API UBaseAttributeSet : public UAttributeSet
 public:
 	UBaseAttributeSet();
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) override;
 	virtual void PostGameplayEffectExecute(const struct FGameplayEffectModCallbackData& Data) override;
 
 	UPROPERTY(EditDefaultsOnly, Category = "Health", ReplicatedUsing = OnRep_Health)
@@ -46,6 +47,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "MoveSpeed", ReplicatedUsing = OnRep_MoveSpeed)
 	FGameplayAttributeData MoveSpeed;
 	ATTRIBUTE_ACCESSORS(UBaseAttributeSet, MoveSpeed)
+
+	void AdjustAttributeForMaxChange(const FGameplayAttributeData& AffectedAttribute, const FGameplayAttributeData& MaxAttribute,
+		float NewMaxValue, const FGameplayAttribute AffectedAttributeProperty) const;
 
 protected:
 	UFUNCTION()

@@ -1,7 +1,9 @@
 #pragma once
 
+#include "CharacterData.generated.h"
+
 UENUM(BlueprintType)
-enum class ECharacterAbilityID : uint8
+enum class ECharacterAbilityInputID : uint8
 {
 	None,
 	Confirm,
